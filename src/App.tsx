@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import { Toaster } from "sonner"
 
 const queryClient = new QueryClient();
 
@@ -11,6 +12,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <Toaster position="top-right" />
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />

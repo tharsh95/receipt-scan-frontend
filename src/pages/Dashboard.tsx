@@ -1,96 +1,93 @@
-
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, FileCheck, Cog, Receipt, LogOut, User, DollarSign, CheckCircle, FileText } from "lucide-react"
 import UploadTab from "@/components/upload-tab"
-import ValidateTab from "@/components/validate-tab"
-import ProcessTab from "@/components/process-tab"
-import ReceiptsTab from "@/components/receipts-tab"
-
-interface DashboardStats {
-  totalFiles: number
-  validFiles: number
-  processedFiles: number
-  totalAmount: number
-}
+import { ReceiptList } from "@/components/ReceiptList"
+import { useReceipts } from "@/hooks/useReceipts"
+import type { ReceiptStatus } from "@/types/receipt"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from 'sonner'
+const API_URL = import.meta.env.VITE_BE_URL
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string } | null>(null)
-  const [stats, setStats] = useState<DashboardStats>({
-    totalFiles: 0,
-    validFiles: 0,
-    processedFiles: 0,
-    totalAmount: 0,
-  })
-  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<ReceiptStatus>("uploaded")
+  const [search, setSearch] = useState("")
+  const [sortBy, setSortBy] = useState("createdAt")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const navigate = useNavigate()
 
-  // useEffect(() => {
-  //   const token = localStorage.getItem("token")
-  //   if (!token) {
-  //     navigate("/login")
-  //     return
-  //   }
+  const { receipts, stats, loading, error, refetch } = useReceipts({
+    status: activeTab,
+    sortBy,
+    sortOrder,
+    search,
+  })
 
-  //   fetchUserData()
-  //   fetchStats()
-  // }, [])
-
-  const fetchUserData = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
-      } else {
-        localStorage.removeItem("token")
-        navigate("/login")
-      }
-    } catch (error) {
-      console.error("Error fetching user data:", error)
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      navigate("/login")
     }
-  }
-
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch("/api/stats", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (response.ok) {
-        const statsData = await response.json()
-        setStats(statsData)
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem("token")
     navigate("/login")
   }
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center">
-  //       <div className="text-center">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-  //         <p>Loading dashboard...</p>
-  //       </div>
-  //     </div>
-  //   )
-  // }
+  const handleValidate = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/receipts/${id}/validate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to validate receipt')
+      }
+
+      toast.success('Receipt validated successfully')
+      refetch()
+      setActiveTab("processed")
+    } catch (error) {
+      toast.error('Failed to validate receipt')
+      throw error
+    }
+  }
+
+  const handleProcess = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/receipts/${id}/process`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to process receipt')
+      }
+
+      toast.success('Receipt processed successfully')
+      setActiveTab("final")
+      refetch()
+    } catch (error) {
+      toast.error('Failed to process receipt')
+      throw error
+    }
+  }
+
+  const handleUploadSuccess = () => {
+    refetch()
+    setActiveTab('validate')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,41 +172,88 @@ export default function DashboardPage() {
             <CardDescription>Upload, validate, and process your receipts</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="upload" className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ReceiptStatus)} className="w-full">
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="upload" className="flex items-center gap-2">
+                <TabsTrigger value="uploaded" className="flex items-center gap-2">
                   <Upload className="h-4 w-4" />
-                  Upload
+                  Uploaded
                 </TabsTrigger>
                 <TabsTrigger value="validate" className="flex items-center gap-2">
                   <FileCheck className="h-4 w-4" />
                   Validate
                 </TabsTrigger>
-                <TabsTrigger value="process" className="flex items-center gap-2">
+                <TabsTrigger value="processed" className="flex items-center gap-2">
                   <Cog className="h-4 w-4" />
                   Process
                 </TabsTrigger>
-                <TabsTrigger value="receipts" className="flex items-center gap-2">
+                <TabsTrigger value="final" className="flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
                   Receipts
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="upload" className="mt-6">
-                <UploadTab onUploadSuccess={fetchStats} />
-              </TabsContent>
+              <div className="mt-6 space-y-4">
+                <div className="flex gap-4">
+                  <Input
+                    placeholder="Search receipts..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="max-w-sm"
+                  />
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="createdAt">Created Date</SelectItem>
+                      <SelectItem value="updatedAt">Updated Date</SelectItem>
+                      <SelectItem value="fileName">File Name</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "asc" | "desc")}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Sort order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Ascending</SelectItem>
+                      <SelectItem value="desc">Descending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <TabsContent value="validate" className="mt-6">
-                <ValidateTab onValidationSuccess={fetchStats} />
-              </TabsContent>
+                <TabsContent value="uploaded">
+                  <UploadTab onUploadSuccess={handleUploadSuccess} />
+                </TabsContent>
 
-              <TabsContent value="process" className="mt-6">
-                <ProcessTab onProcessSuccess={fetchStats} />
-              </TabsContent>
+                <TabsContent value="validate">
+                  <ReceiptList 
+                    receipts={receipts} 
+                    loading={loading} 
+                    error={error}
+                    onValidate={handleValidate}
+                    currentTab="validate"
+                  />
+                </TabsContent>
 
-              <TabsContent value="receipts" className="mt-6">
-                <ReceiptsTab />
-              </TabsContent>
+                <TabsContent value="processed">
+                  <ReceiptList 
+                    receipts={receipts} 
+                    loading={loading} 
+                    error={error}
+                    onProcess={handleProcess}
+                    currentTab="processed"
+                  />
+                </TabsContent>
+
+                <TabsContent value="final">
+                  <ReceiptList 
+                    receipts={receipts} 
+                    loading={loading} 
+                    error={error}
+                    currentTab="final"
+                  />
+                </TabsContent>
+              </div>
             </Tabs>
           </CardContent>
         </Card>
