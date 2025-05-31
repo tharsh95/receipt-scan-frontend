@@ -70,7 +70,6 @@ export default function DashboardPage() {
       else if (!data.status) {
         toast.error(data.message)
         refetch()
-        setActiveTab("uploaded")
       }
       else {
         toast.success('Receipt processed successfully')

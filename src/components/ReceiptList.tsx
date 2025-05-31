@@ -24,6 +24,14 @@ interface ReceiptListProps {
   currentTab: 'uploaded' | 'validate' | 'processed' | 'final'
 }
 
+interface ReceiptStatsData {
+  totalSpent: number
+  averageAmount: number
+  totalReceipts: number
+  monthlyBreakdown: Record<string, number>
+  categoryBreakdown: Record<string, number>
+}
+
 const getStatusColor = (stage: ReceiptFile['status']['currentStage']) => {
   switch (stage) {
     case 'pending_validation':
@@ -261,20 +269,6 @@ function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: R
       </div>
     </div>
   )
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface ReceiptStatsData {
-  totalSpent: number
-  averageAmount: number
-  totalReceipts: number
-  monthlyBreakdown: Record<string, number>
-  categoryBreakdown: Record<string, number>
 }
 
 export function ReceiptList({ receipts, loading, error, onValidate, onProcess, onDelete, currentTab }: ReceiptListProps) {
@@ -305,10 +299,12 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, o
       }
     }
 
-    fetchStats()
-  }, [receipts]) // Refetch stats when receipts change
+    if (currentTab === 'final') {
+      fetchStats()
+    }
+  }, [currentTab, receipts]) // Refetch stats when tab changes or receipts change
 
-  if (loading || statsLoading) {
+  if (loading || (currentTab === 'final' && statsLoading)) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -341,8 +337,8 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, o
 
   return (
     <div className="space-y-6">
-      {/* Stats Section */}
-      {stats && <ReceiptStats stats={stats} />}
+      {/* Stats Section - Only show in final tab */}
+      {currentTab === 'final' && stats && <ReceiptStats stats={stats} />}
 
       {currentTab === 'validate' && (
         <>

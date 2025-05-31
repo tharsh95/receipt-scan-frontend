@@ -32,6 +32,7 @@ interface UseReceiptsResult {
   error: string | null
   refetch: () => Promise<void>
 }
+
 const API_URL = import.meta.env.VITE_BE_URL
 
 export function useReceipts({ status, sortBy = 'createdAt', sortOrder = 'desc', search = '' }: UseReceiptsOptions = {}): UseReceiptsResult {
