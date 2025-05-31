@@ -261,6 +261,12 @@ function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: R
       </div>
     </div>
   )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 interface ReceiptStatsData {
@@ -335,6 +341,9 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, o
 
   return (
     <div className="space-y-6">
+      {/* Stats Section */}
+      {stats && <ReceiptStats stats={stats} />}
+
       {currentTab === 'validate' && (
         <>
           {pendingReceipts.length > 0 && (
