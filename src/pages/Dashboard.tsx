@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 const API_URL = import.meta.env.VITE_BE_URL
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ name: string } | null>(null)
+  const [user] = useState<{ name: string } | null>(null)
   const [activeTab, setActiveTab] = useState<ReceiptStatus>("uploaded")
   const [search, setSearch] = useState("")
   const [sortBy, setSortBy] = useState("createdAt")
@@ -80,6 +80,26 @@ export default function DashboardPage() {
       refetch()
     } catch (error) {
       toast.error('Failed to process receipt')
+      throw error
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/receipts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete receipt')
+      }
+
+      refetch()
+    } catch (error) {
+      toast.error('Failed to delete receipt')
       throw error
     }
   }
@@ -231,6 +251,7 @@ export default function DashboardPage() {
                     loading={loading} 
                     error={error}
                     onValidate={handleValidate}
+                    onDelete={handleDelete}
                     currentTab="validate"
                   />
                 </TabsContent>
@@ -241,6 +262,7 @@ export default function DashboardPage() {
                     loading={loading} 
                     error={error}
                     onProcess={handleProcess}
+                    onDelete={handleDelete}
                     currentTab="processed"
                   />
                 </TabsContent>
@@ -250,6 +272,7 @@ export default function DashboardPage() {
                     receipts={receipts} 
                     loading={loading} 
                     error={error}
+                    onDelete={handleDelete}
                     currentTab="final"
                   />
                 </TabsContent>

@@ -3,8 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { AlertCircle, CheckCircle, Clock, FileText, Check, Play, Eye, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { AlertCircle, CheckCircle, Clock, FileText, Check, Play, Eye, Loader2, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { ReceiptStats } from './ReceiptStats'
 
 interface ReceiptListProps {
   receipts: ReceiptFile[]
@@ -12,6 +20,7 @@ interface ReceiptListProps {
   error: string | null
   onValidate?: (id: string) => Promise<void>
   onProcess?: (id: string) => Promise<void>
+  onDelete?: (id: string) => Promise<void>
   currentTab: 'uploaded' | 'validate' | 'processed' | 'final'
 }
 
@@ -60,12 +69,14 @@ interface ReceiptCardProps {
   receipt: ReceiptFile
   onValidate?: (id: string) => Promise<void>
   onProcess?: (id: string) => Promise<void>
+  onDelete?: (id: string) => Promise<void>
   currentTab: ReceiptListProps['currentTab']
 }
 
-function ReceiptCard({ receipt, onValidate, onProcess, currentTab }: ReceiptCardProps) {
+function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: ReceiptCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleValidate = async () => {
     if (!onValidate) return
@@ -87,43 +98,32 @@ function ReceiptCard({ receipt, onValidate, onProcess, currentTab }: ReceiptCard
     }
   }
 
+  const handleDelete = async () => {
+    if (!onDelete) return
+    setIsDeleting(true)
+    try {
+      await onDelete(receipt.id)
+      toast.success('Receipt deleted successfully')
+    } catch (error) {
+      toast.error('Failed to delete receipt')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
-    <div className="border rounded-lg p-3">
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
+    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+      <div className="flex flex-col gap-3">
+        {/* Header with actions */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium">{receipt.fileName}</h3>
+            <h3 className="font-medium text-gray-900">{receipt.fileName}</h3>
             <Badge className={getStatusColor(receipt.status.currentStage)}>
               <span className="flex items-center gap-1">
                 {getStatusIcon(receipt.status.currentStage)}
                 {getDisplayStatus(receipt, currentTab)}
               </span>
             </Badge>
-          </div>
-          {showDetails && receipt.receipt && (
-            <div className="text-sm text-gray-500 mt-2 space-y-1">
-              <p>Merchant: {receipt.receipt.merchantName}</p>
-              <p>Amount: ${receipt.receipt.totalAmount.toFixed(2)}</p>
-              <p>Date: {format(new Date(receipt.receipt.purchasedAt), 'PPP')}</p>
-              {receipt.receipt.items.length > 0 && (
-                <div className="mt-2">
-                  <p className="font-medium">Items:</p>
-                  <ul className="list-disc list-inside">
-                    {receipt.receipt.items.map((item) => (
-                      <li key={item.id}>
-                        {item.name} - ${item.price.toFixed(2)} x {item.quantity}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="text-sm text-gray-500">
-            <p>Created: {format(new Date(receipt.createdAt), 'PP')}</p>
-            <p>Updated: {format(new Date(receipt.updatedAt), 'PP')}</p>
           </div>
           <div className="flex gap-2">
             {currentTab === 'validate' && !receipt.status.isValid && !receipt.status.isProcessed && onValidate && (
@@ -167,15 +167,117 @@ function ReceiptCard({ receipt, onValidate, onProcess, currentTab }: ReceiptCard
                 {showDetails ? 'Hide Details' : 'View Details'}
               </Button>
             )}
+            {currentTab !== 'uploaded' && onDelete && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon"
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="h-8 w-8"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete receipt</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         </div>
+
+        {/* Created date */}
+        <div className="text-sm text-gray-500">
+          Created: {format(new Date(receipt.createdAt), 'PP')}
+        </div>
+
+        {/* Details section */}
+        {showDetails && receipt.receipt && (
+          <div className="mt-2 p-3 bg-gray-50 rounded-md space-y-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Merchant</p>
+                <p className="text-sm text-gray-600">{receipt.receipt.merchantName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">Amount</p>
+                <p className="text-sm text-gray-600">${receipt.receipt.totalAmount.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">Date</p>
+                <p className="text-sm text-gray-600">{format(new Date(receipt.receipt.purchasedAt), 'PPP')}</p>
+              </div>
+            </div>
+            {receipt.receipt.items.length > 0 && (
+              <div className="mt-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">Items</p>
+                <div className="bg-white rounded-md p-2">
+                  <ul className="space-y-1">
+                    {receipt.receipt.items.map((item) => (
+                      <li key={item.id} className="text-sm text-gray-600 flex justify-between">
+                        <span>{item.name}</span>
+                        <span>${item.price.toFixed(2)} x {item.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-export function ReceiptList({ receipts, loading, error, onValidate, onProcess, currentTab }: ReceiptListProps) {
-  if (loading) {
+interface ReceiptStatsData {
+  totalSpent: number
+  averageAmount: number
+  totalReceipts: number
+  monthlyBreakdown: Record<string, number>
+  categoryBreakdown: Record<string, number>
+}
+
+export function ReceiptList({ receipts, loading, error, onValidate, onProcess, onDelete, currentTab }: ReceiptListProps) {
+  const [stats, setStats] = useState<ReceiptStatsData | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setStatsLoading(true)
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${import.meta.env.VITE_BE_URL}/receipts/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch stats')
+        }
+
+        const data = await response.json()
+        setStats(data)
+      } catch (error) {
+        toast.error('Failed to load receipt statistics')
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [receipts]) // Refetch stats when receipts change
+
+  if (loading || statsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -208,6 +310,9 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, c
 
   return (
     <div className="space-y-6">
+      {/* Stats Section */}
+      {stats && <ReceiptStats stats={stats} />}
+
       {currentTab === 'validate' && (
         <>
           {pendingReceipts.length > 0 && (
@@ -221,6 +326,7 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, c
                     key={receipt.id}
                     receipt={receipt}
                     onValidate={onValidate}
+                    onDelete={onDelete}
                     currentTab={currentTab}
                   />
                 ))}
@@ -237,6 +343,7 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, c
                   <ReceiptCard
                     key={receipt.id}
                     receipt={receipt}
+                    onDelete={onDelete}
                     currentTab={currentTab}
                   />
                 ))}
@@ -259,6 +366,7 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, c
                     key={receipt.id}
                     receipt={receipt}
                     onProcess={onProcess}
+                    onDelete={onDelete}
                     currentTab={currentTab}
                   />
                 ))}
@@ -275,6 +383,8 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, c
                   <ReceiptCard
                     key={receipt.id}
                     receipt={receipt}
+                    onProcess={onProcess}
+                    onDelete={onDelete}
                     currentTab={currentTab}
                   />
                 ))}
@@ -290,10 +400,11 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, c
             <CardTitle className="text-lg">Completed Receipts</CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
-            {processedReceipts.map((receipt) => (
+            {receipts.map((receipt) => (
               <ReceiptCard
                 key={receipt.id}
                 receipt={receipt}
+                onDelete={onDelete}
                 currentTab={currentTab}
               />
             ))}
