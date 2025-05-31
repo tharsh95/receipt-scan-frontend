@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { data, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -8,24 +8,16 @@ import UploadTab from "@/components/upload-tab"
 import { ReceiptList } from "@/components/ReceiptList"
 import { useReceipts } from "@/hooks/useReceipts"
 import type { ReceiptStatus } from "@/types/receipt"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from 'sonner'
 const API_URL = import.meta.env.VITE_BE_URL
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ name: string } | null>(null)
+  const [user] = useState<{ name: string } | null>(null)
   const [activeTab, setActiveTab] = useState<ReceiptStatus>("uploaded")
-  const [search, setSearch] = useState("")
-  const [sortBy, setSortBy] = useState("createdAt")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const navigate = useNavigate()
 
   const { receipts, stats, loading, error, refetch } = useReceipts({
     status: activeTab,
-    sortBy,
-    sortOrder,
-    search,
   })
 
   useEffect(() => {
@@ -71,15 +63,42 @@ export default function DashboardPage() {
         },
       })
 
+      const data = await response.json()
       if (!response.ok) {
         throw new Error('Failed to process receipt')
       }
-
-      toast.success('Receipt processed successfully')
-      setActiveTab("final")
-      refetch()
+      else if (!data.status) {
+        toast.error(data.message)
+        refetch()
+        setActiveTab("uploaded")
+      }
+      else {
+        toast.success('Receipt processed successfully')
+        setActiveTab("final")
+        refetch()
+      }
     } catch (error) {
       toast.error('Failed to process receipt')
+      throw error
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/receipts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete receipt')
+      }
+
+      refetch()
+    } catch (error) {
+      toast.error('Failed to delete receipt')
       throw error
     }
   }
@@ -122,7 +141,7 @@ export default function DashboardPage() {
                 <FileText className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Files</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalFiles}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.totalFiles || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -134,7 +153,7 @@ export default function DashboardPage() {
                 <CheckCircle className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Valid Files</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.validFiles}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.validFiles || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -145,8 +164,8 @@ export default function DashboardPage() {
               <div className="flex items-center">
                 <Cog className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Processed</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.processedFiles}</p>
+                  <p className="text-sm font-medium text-gray-600">Processed Files</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.processedFiles || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -158,7 +177,7 @@ export default function DashboardPage() {
                 <DollarSign className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                  <p className="text-2xl font-bold text-gray-900">${stats.totalAmount.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">${stats?.totalAmount?.toFixed(2) || '0.00'}</p>
                 </div>
               </div>
             </CardContent>
@@ -192,64 +211,39 @@ export default function DashboardPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <div className="mt-6 space-y-4">
-                <div className="flex gap-4">
-                  <Input
-                    placeholder="Search receipts..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="max-w-sm"
-                  />
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="createdAt">Created Date</SelectItem>
-                      <SelectItem value="updatedAt">Updated Date</SelectItem>
-                      <SelectItem value="fileName">File Name</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as "asc" | "desc")}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Sort order" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asc">Ascending</SelectItem>
-                      <SelectItem value="desc">Descending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
+              <div className="mt-6">
                 <TabsContent value="uploaded">
                   <UploadTab onUploadSuccess={handleUploadSuccess} />
                 </TabsContent>
 
                 <TabsContent value="validate">
-                  <ReceiptList 
-                    receipts={receipts} 
-                    loading={loading} 
+                  <ReceiptList
+                    receipts={receipts}
+                    loading={loading}
                     error={error}
                     onValidate={handleValidate}
+                    onDelete={handleDelete}
                     currentTab="validate"
                   />
                 </TabsContent>
 
                 <TabsContent value="processed">
-                  <ReceiptList 
-                    receipts={receipts} 
-                    loading={loading} 
+                  <ReceiptList
+                    receipts={receipts}
+                    loading={loading}
                     error={error}
                     onProcess={handleProcess}
+                    onDelete={handleDelete}
                     currentTab="processed"
                   />
                 </TabsContent>
 
                 <TabsContent value="final">
-                  <ReceiptList 
-                    receipts={receipts} 
-                    loading={loading} 
+                  <ReceiptList
+                    receipts={receipts}
+                    loading={loading}
                     error={error}
+                    onDelete={handleDelete}
                     currentTab="final"
                   />
                 </TabsContent>
