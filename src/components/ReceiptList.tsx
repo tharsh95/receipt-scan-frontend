@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { AlertCircle, CheckCircle, Clock, FileText, Check, Play, Eye, Loader2, Trash2, X } from 'lucide-react'
+import { AlertCircle, CheckCircle, Clock, FileText, Check, Play, Eye, Loader2, Trash2, X, FileCheck } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
@@ -242,7 +242,7 @@ function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: R
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-700">Amount</p>
-                <p className="text-sm text-gray-600">${receipt.receipt.totalAmount.toFixed(2)}</p>
+                <p className="text-sm text-gray-600">${receipt?.receipt?.totalAmount.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-700">Date</p>
@@ -257,7 +257,7 @@ function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: R
                     {receipt.receipt.items.map((item) => (
                       <li key={item.id} className="text-sm text-gray-600 flex justify-between">
                         <span>{item.name}</span>
-                        <span>${item.price.toFixed(2)} x {item.quantity}</span>
+                        <span>${item?.price?.toFixed(2)} x {item.quantity}</span>
                       </li>
                     ))}
                   </ul>
@@ -342,40 +342,50 @@ export function ReceiptList({ receipts, loading, error, onValidate, onProcess, o
 
       {currentTab === 'validate' && (
         <>
-          {pendingReceipts.length > 0 && (
-            <Card>
-              <CardHeader className="p-4">
-                <CardTitle className="text-lg">Pending Validation</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {pendingReceipts.map((receipt) => (
-                  <ReceiptCard
-                    key={receipt.id}
-                    receipt={receipt}
-                    onValidate={onValidate}
-                    onDelete={onDelete}
-                    currentTab={currentTab}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          )}
-          {validatedReceipts.length > 0 && (
-            <Card>
-              <CardHeader className="p-4">
-                <CardTitle className="text-lg">Validated Receipts</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                {validatedReceipts.map((receipt) => (
-                  <ReceiptCard
-                    key={receipt.id}
-                    receipt={receipt}
-                    onDelete={onDelete}
-                    currentTab={currentTab}
-                  />
-                ))}
-              </CardContent>
-            </Card>
+          {pendingReceipts.length === 0 && validatedReceipts.length === 0 ? (
+            <div className="text-center p-8 bg-gray-50 rounded-lg">
+              <FileCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Receipts to Validate</h3>
+              <p className="text-gray-500">All receipts have been validated. You can proceed to the Process tab.</p>
+            </div>
+          ) : (
+            <>
+              {pendingReceipts.length > 0 && (
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg">Pending Validation</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    {pendingReceipts.map((receipt) => (
+                      <ReceiptCard
+                        key={receipt.id}
+                        receipt={receipt}
+                        onValidate={onValidate}
+                        onDelete={onDelete}
+                        currentTab={currentTab}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+              {validatedReceipts.length > 0 && (
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg">Validated Receipts</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-3">
+                    {validatedReceipts.map((receipt) => (
+                      <ReceiptCard
+                        key={receipt.id}
+                        receipt={receipt}
+                        onDelete={onDelete}
+                        currentTab={currentTab}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </>
       )}

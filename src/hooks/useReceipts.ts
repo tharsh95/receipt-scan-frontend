@@ -54,7 +54,7 @@ export function useReceipts({ status, sortBy = 'createdAt', sortOrder = 'desc', 
       const queryParams = new URLSearchParams()
       if (status) queryParams.append('status', status)
       if (sortBy) queryParams.append('sortBy', sortBy)
-      if (sortOrder) queryParams.append('sortOrder', sortOrder)
+      // if (sortOrder) queryParams.append('sortOrder', 'sortOrder')
       if (search) queryParams.append('search', search)
 
       const response = await fetch(`${API_URL}/receipts?${queryParams.toString()}`, {
