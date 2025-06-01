@@ -63,14 +63,14 @@ export default function DashboardPage() {
         },
       })
 
-      const data = await response.json()
+      // const data = await response.json()
       if (!response.ok) {
         throw new Error('Failed to process receipt')
       }
-      else if (!data.status) {
-        toast.error(data.message)
-        refetch()
-      }
+      // else if (!data.status) {
+      //   toast.error(data.message)
+      //   refetch()
+      // }
       else {
         toast.success('Receipt processed successfully')
         setActiveTab("final")
