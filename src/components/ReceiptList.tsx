@@ -84,7 +84,6 @@ interface ReceiptCardProps {
 function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: ReceiptCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleValidate = async () => {
     if (!onValidate) return
@@ -108,14 +107,12 @@ function ReceiptCard({ receipt, onValidate, onProcess, onDelete, currentTab }: R
 
   const handleDelete = async () => {
     if (!onDelete) return
-    setIsDeleting(true)
     try {
       await onDelete(receipt.id)
       toast.success('Receipt deleted successfully')
     } catch (error) {
       toast.error('Failed to delete receipt')
     } finally {
-      setIsDeleting(false)
     }
   }
 
